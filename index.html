@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agente Qualidade QG09</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="side">
+    <div class="logo">
+      <div class="logo-t">Agente Qualidade</div>
+      <div class="logo-s">QG09 &middot; Glazed Frame</div>
+    </div>
+    <div class="sidenav">
+      <button class="ni on" onclick="nav('upload',this)">&#8679; Importar</button>
+      <button class="ni" onclick="nav('dash',this)">&#9642; Dashboard</button>
+      <button class="ni" onclick="nav('rft',this)">&#9673; RFT</button>
+      <button class="ni" onclick="nav('crit',this)">&#9873; Criticos</button>
+      <button class="ni" onclick="nav('docs',this)">&#9632; A3 / 8D</button>
+      <button class="ni" onclick="nav('mem',this)">&#9711; Memoria</button>
+      <button class="ni" onclick="nav('cfg',this)">&#9881; Config</button>
+    </div>
+    <div class="side-ft">v4.0 &middot; QG09</div>
+  </div>
+  <div class="main">
+
+    <!-- IMPORTAR -->
+    <div id="pg-upload" class="pg on">
+      <div class="topbar"><div><div class="tb-t">Importar dados</div><div class="tb-s">CSV de defeitos do Tableau (TAB separado, filtro QG09 automatico)</div></div></div>
+      <div class="body">
+        <div class="apibox">
+          <label>Chave API Groq (para gerar A3/8D)</label>
+          <div class="api-row">
+            <input type="password" id="apikey" placeholder="gsk_...">
+            <button class="btn btnsm" onclick="saveKey()">Salvar</button>
+          </div>
+          <div style="font-size:10px;color:#92400e;margin-top:5px">Salva localmente no navegador. Obtenha gratuitamente em console.groq.com</div>
+        </div>
+        <div class="dropz" onclick="document.getElementById('f-def').click()">
+          <input type="file" id="f-def" accept=".csv,.txt,.tsv" style="display:none" onchange="handleDefFile(event)">
+          <div class="dropz-icon">&#128194;</div>
+          <div class="dropz-t">CSV de defeitos (Tableau)</div>
+          <div class="dropz-s">Colunas: NR_WO &middot; DT_CRIACAO_FALHA &middot; C_MODELO_FAMILIA &middot; ANOMALIA_FALHA &middot; CD_POSTO_FALHA</div>
+        </div>
+        <div id="fb-def" style="margin-top:12px"></div>
+        <div class="or-div">ou</div>
+        <div class="sec-t">Demonstracao</div>
+        <button class="btn btnp" onclick="loadDemo()">Carregar dados de demonstracao</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="pg-dash" class="pg">
+      <div class="topbar">
+        <div><div class="tb-t">Dashboard &mdash; QG09 Glazed Frame</div><div class="tb-s" id="dash-sub"></div></div>
+        <button class="btn btnsm" onclick="nav('upload',document.querySelectorAll('.ni')[0])">Novo upload</button>
+      </div>
+      <div class="body">
+        <div class="mrow" id="mrow"></div>
+        <div class="sec-t">Filtrar por modelo</div>
+        <div class="model-sel" id="model-sel"></div>
+        <div class="cgrid">
+          <div class="cbox cfull">
+            <div class="cbox-t">Pareto &mdash; TOP 15 tipos de defeito</div>
+            <div class="model-sel" id="model-sel-pareto" style="margin-bottom:8px"></div>
+            <div style="position:relative;height:240px"><canvas id="c-pareto"></canvas></div>
+          </div>
+          <div class="cbox">
+            <div class="cbox-t">Defeitos por familia de modelo</div>
+            <div style="position:relative;height:210px"><canvas id="c-modelo"></canvas></div>
+          </div>
+          <div class="cbox">
+            <div class="cbox-t">Taxa DPU &mdash; Defeitos por WO (semanal)</div>
+            <div style="position:relative;height:210px"><canvas id="c-dpu"></canvas></div>
+          </div>
+          <div class="cbox cfull">
+            <div class="cbox-t">Tendencia semanal de defeitos</div>
+            <div style="position:relative;height:180px"><canvas id="c-semanal"></canvas></div>
+          </div>
+        </div>
+        <div class="hm-wrap">
+          <div class="hm-t">Heatmap da cabine &mdash; Concentracao por regiao</div>
+          <div class="model-sel" id="model-sel-hm" style="margin-bottom:12px"></div>
+          <div class="hm-body">
+            <div>
+              <svg viewBox="0 0 260 380" width="210" xmlns="http://www.w3.org/2000/svg">
+                <rect x="30" y="8" width="200" height="364" rx="12" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+                <rect id="hm-superior" x="40" y="16" width="180" height="56" rx="7" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2"/>
+                <text x="130" y="47" text-anchor="middle" font-size="11" font-weight="600" fill="#334155">Superior / Teto</text>
+                <rect id="hm-frontal" x="40" y="80" width="180" height="56" rx="7" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2"/>
+                <text x="130" y="111" text-anchor="middle" font-size="11" font-weight="600" fill="#334155">Frontal</text>
+                <rect id="hm-lat-esq" x="40" y="144" width="85" height="68" rx="7" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2"/>
+                <text x="82" y="174" text-anchor="middle" font-size="10" font-weight="600" fill="#334155">Lateral</text>
+                <text x="82" y="187" text-anchor="middle" font-size="10" font-weight="600" fill="#334155">Esquerda</text>
+                <rect id="hm-lat-dir" x="135" y="144" width="85" height="68" rx="7" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2"/>
+                <text x="178" y="174" text-anchor="middle" font-size="10" font-weight="600" fill="#334155">Lateral</text>
+                <text x="178" y="187" text-anchor="middle" font-size="10" font-weight="600" fill="#334155">Direita</text>
+                <rect id="hm-inferior" x="40" y="220" width="180" height="56" rx="7" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2"/>
+                <text x="130" y="251" text-anchor="middle" font-size="11" font-weight="600" fill="#334155">Assoalho / Piso</text>
+                <rect id="hm-traseira" x="40" y="284" width="180" height="56" rx="7" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2"/>
+                <text x="130" y="315" text-anchor="middle" font-size="11" font-weight="600" fill="#334155">Traseira</text>
+              </svg>
+            </div>
+            <div class="hm-legend">
+              <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">Defeitos por regiao</div>
+              <div id="hm-list"></div>
+              <div style="margin-top:12px">
+                <div style="font-size:10px;font-weight:600;color:#374151;margin-bottom:5px">Intensidade</div>
+                <div style="height:10px;border-radius:5px;background:linear-gradient(to right,#fef3c7,#f97316,#dc2626)"></div>
+                <div style="display:flex;justify-content:space-between;font-size:9px;color:#9ca3af;margin-top:2px"><span>Menor</span><span>Maior</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cbox" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px">
+          <div class="cbox-t">Modelo x Regiao &mdash; onde cada modelo falha</div>
+          <div style="position:relative;height:260px"><canvas id="c-regiao"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RFT -->
+    <div id="pg-rft" class="pg">
+      <div class="topbar"><div><div class="tb-t">RFT &mdash; Ready First Time</div><div class="tb-s">QG09 &middot; C_DPU_QG_AMARELO = 0 e RFT</div></div></div>
+      <div class="body">
+        <div class="dropz" onclick="document.getElementById('f-prod').click()" style="margin-bottom:14px">
+          <input type="file" id="f-prod" accept=".csv,.txt,.tsv" style="display:none" onchange="handleProdFile(event)">
+          <div class="dropz-icon">&#128203;</div>
+          <div class="dropz-t">Upload: Lista de Maquinas Inspecionadas</div>
+          <div class="dropz-s">Colunas: CD_POSTO_CN &middot; NR_WO &middot; CD_MODELO &middot; DT_HR_INSPECAO &middot; C_DPU_QG_AMARELO</div>
+        </div>
+        <div id="fb-prod" style="margin-bottom:12px"></div>
+        <div id="rft-content" style="display:none">
+          <div id="rft-meta-info" class="al al-i" style="margin-bottom:14px"></div>
+          <div class="rft-row" id="rft-cards"></div>
+          <div class="cgrid">
+            <div class="cbox cfull"><div class="cbox-t">RFT &mdash; Acumulado anual e semanal</div><div style="position:relative;height:240px"><canvas id="c-rft-combined"></canvas></div></div>
+            <div class="cbox cfull"><div class="cbox-t">RFT por familia de modelo</div><div style="position:relative;height:210px"><canvas id="c-rft-m"></canvas></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRITICOS -->
+    <div id="pg-crit" class="pg">
+      <div class="topbar"><div><div class="tb-t">Defeitos criticos</div><div class="tb-s" id="crit-sub">Threshold: 3+ por semana</div></div></div>
+      <div class="body"><div id="crit-al"></div><div id="crit-list"></div></div>
+    </div>
+
+    <!-- A3/8D -->
+    <div id="pg-docs" class="pg">
+      <div class="topbar"><div><div class="tb-t">A3 / 8D gerados</div><div class="tb-s">Documentos criados pelo agente</div></div></div>
+      <div class="body"><div id="docs-view"></div></div>
+    </div>
+
+    <!-- MEMORIA -->
+    <div id="pg-mem" class="pg">
+      <div class="topbar"><div><div class="tb-t">Memoria de problemas</div><div class="tb-s">Evita documentos duplicados</div></div></div>
+      <div class="body"><div id="mem-list"></div></div>
+    </div>
+
+    <!-- CONFIG -->
+    <div id="pg-cfg" class="pg">
+      <div class="topbar"><div><div class="tb-t">Configuracoes</div><div class="tb-s">Personalize o agente</div></div></div>
+      <div class="body">
+        <div class="cfg-c">
+          <div class="cfg-l">Threshold de criticidade</div>
+          <div class="cfg-s">Ocorrencias por semana para disparar A3/8D</div>
+          <select id="cfg-thr"><option value="2">2+</option><option value="3" selected>3+</option><option value="5">5+</option><option value="10">10+</option></select>
+        </div>
+        <div class="cfg-c">
+          <div class="cfg-l">Meta RFT manual (%)</div>
+          <div class="cfg-s">Deixe em branco para calcular automaticamente</div>
+          <input type="number" id="cfg-rft-meta" min="50" max="100" placeholder="Ex: 95">
+        </div>
+        <div class="cfg-c">
+          <div class="cfg-l">Conhecimento do processo</div>
+          <div class="cfg-s">Equipamentos, gases, historico...</div>
+          <textarea id="cfg-ctx" placeholder="Ex: Gas C25, Lincoln 450..."></textarea>
+        </div>
+        <div class="cfg-c">
+          <div class="cfg-l">Regioes criticas do frame</div>
+          <div class="cfg-s">Elevam severidade independentemente da frequencia</div>
+          <textarea id="cfg-reg" placeholder="Ex: Longarinas dianteiras, suporte de cabine..."></textarea>
+        </div>
+        <div class="cfg-c">
+          <div class="cfg-l">Persona do especialista</div>
+          <textarea id="cfg-persona">Engenheiro senior de qualidade com 20 anos de experiencia em manufatura agricola e soldagem estrutural de frames de tratores. Linguagem direta, tecnica e orientada ao chao de fabrica. Especialista em processos MIG/MAG. Sempre aponta pelo menos 3 causas raiz tecnicas e prioriza acoes praticas imediatas.</textarea>
+        </div>
+        <button class="btn btnp" onclick="saveCfg()">Salvar configuracoes</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/data.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/rft.js"></script>
+<script src="js/criticos.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
